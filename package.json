@@ -1,0 +1,17 @@
+{
+  "name": "letterboxd-recommender",
+  "version": "1.0.0",
+  "description": "A privacy-first Letterboxd AI movie recommender",
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve .",
+    "build": "echo 'No build step required for static site'",
+    "lint": "echo 'No linter configured'"
+  },
+  "keywords": ["letterboxd", "movie", "recommender", "ai"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@vercel/analytics": "^1.4.1"
+  }
+}
