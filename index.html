@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A privacy-first Letterboxd AI movie recommender.">
+  <title>FilmMatch — Letterboxd AI Recommender</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="container">
+    <header class="hero">
+      <p class="eyebrow">LETTERBOXD • AI RECOMMENDER</p>
+      <h1>Find your next movie.</h1>
+      <p class="subtitle">
+        Upload your Letterboxd export, answer a few questions, and get
+        recommendations based on your actual movie taste.
+      </p>
+    </header>
+
+    <section class="card" id="uploadCard">
+      <div class="step">01</div>
+      <h2>Upload your Letterboxd export</h2>
+      <p>
+        In Letterboxd, go to <strong>Settings → Import & Export → Export Your Data</strong>
+        and download the ZIP. Your ZIP is processed in your browser and is not uploaded
+        to the recommendation API.
+      </p>
+
+      <label class="file-drop" id="dropZone" for="zipInput">
+        <span class="upload-icon">↑</span>
+        <strong>Choose your Letterboxd ZIP</strong>
+        <span>or drag and drop it here</span>
+        <input id="zipInput" type="file" accept=".zip,application/zip">
+      </label>
+
+      <div id="uploadStatus" class="status hidden"></div>
+    </section>
+
+    <section class="card hidden" id="profileCard">
+      <div class="step">02</div>
+      <h2>Your Letterboxd profile</h2>
+      <div id="profileSummary" class="stats-grid"></div>
+      <div id="fileSummary" class="file-summary"></div>
+    </section>
+
+    <section class="card hidden" id="questionsCard">
+      <div class="step">03</div>
+      <h2>What are you in the mood for?</h2>
+
+      <div class="question">
+        <label for="mood">What kind of movie do you want?</label>
+        <select id="mood">
+          <option value="anything">Anything</option>
+          <option value="fun">Fun / entertaining</option>
+          <option value="thoughtful">Thought-provoking</option>
+          <option value="emotional">Emotional</option>
+          <option value="intense">Intense / suspenseful</option>
+          <option value="relaxing">Relaxing / easy to watch</option>
+          <option value="strange">Weird / unconventional</option>
+        </select>
+      </div>
+
+      <div class="question">
+        <label for="genre">Any genre preference?</label>
+        <select id="genre">
+          <option value="any">No preference</option>
+          <option>Action</option>
+          <option>Adventure</option>
+          <option>Animation</option>
+          <option>Comedy</option>
+          <option>Crime</option>
+          <option>Documentary</option>
+          <option>Drama</option>
+          <option>Fantasy</option>
+          <option>Horror</option>
+          <option>Mystery</option>
+          <option>Romance</option>
+          <option>Science Fiction</option>
+          <option>Thriller</option>
+        </select>
+      </div>
+
+      <div class="question">
+        <label for="length">Preferred length?</label>
+        <select id="length">
+          <option value="any">Any length</option>
+          <option value="short">Under 100 minutes</option>
+          <option value="medium">100–140 minutes</option>
+          <option value="long">Over 140 minutes</option>
+        </select>
+      </div>
+
+      <div class="question">
+        <label for="familiarity">How adventurous should the recommendations be?</label>
+        <select id="familiarity">
+          <option value="safe">Mostly familiar / highly likely to enjoy</option>
+          <option value="balanced" selected>A balance of familiar and new</option>
+          <option value="adventurous">Surprise me / go outside my usual taste</option>
+        </select>
+      </div>
+
+      <div class="question">
+        <label for="extra">Anything else?</label>
+        <textarea id="extra" rows="3" maxlength="1000"
+          placeholder="Example: I have 2 hours tonight and want something with a great ending."></textarea>
+      </div>
+
+      <button id="getRecommendations" class="button">Get my recommendations</button>
+      <div id="aiStatus" class="status hidden"></div>
+    </section>
+
+    <section class="card hidden" id="resultCard">
+      <div class="step">04</div>
+      <h2>Your recommendations</h2>
+      <div id="recommendationOutput" class="recommendations"></div>
+
+      <div class="actions">
+        <button id="copyResults" class="button secondary">Copy recommendations</button>
+        <button id="downloadProfile" class="button secondary">Download profile JSON</button>
+      </div>
+      <div id="copyStatus" class="copy-status"></div>
+    </section>
+
+    <footer>
+      <p>
+        Your Letterboxd ZIP is processed locally. Only the compact recommendation
+        profile is sent to the AI endpoint. No profile database or chat history is used.
+      </p>
+    </footer>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
