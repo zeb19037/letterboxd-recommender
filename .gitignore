@@ -3,6 +3,9 @@
 letterboxd-export/
 *.csv
 
+# Dependencies
+node_modules/
+
 # Local/editor files
 .DS_Store
 Thumbs.db
