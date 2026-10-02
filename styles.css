@@ -1,0 +1,261 @@
+:root {
+  --bg: #101014;
+  --card: #19191f;
+  --card-hover: #202027;
+  --text: #f4f4f5;
+  --muted: #a7a7b2;
+  --accent: #00c030;
+  --accent-dark: #008f24;
+  --border: #303039;
+  --danger: #ff7070;
+  --shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(0, 192, 48, 0.10), transparent 32rem),
+    var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.55;
+}
+
+.container {
+  width: min(920px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 60px 0;
+}
+
+.hero {
+  margin-bottom: 36px;
+}
+
+.eyebrow,
+.step {
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.hero h1 {
+  margin: 8px 0 12px;
+  font-size: clamp(2.5rem, 7vw, 5rem);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
+
+.subtitle {
+  max-width: 680px;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.card {
+  margin: 20px 0;
+  padding: 30px;
+  background: rgba(25, 25, 31, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.card h2 {
+  margin: 5px 0 12px;
+  font-size: 1.55rem;
+}
+
+.card p {
+  color: var(--muted);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.file-drop {
+  min-height: 190px;
+  margin-top: 24px;
+  border: 2px dashed #454550;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: 0.2s ease;
+}
+
+.file-drop:hover,
+.file-drop.dragging {
+  border-color: var(--accent);
+  background: rgba(0, 192, 48, 0.06);
+}
+
+.file-drop input {
+  display: none;
+}
+
+.upload-icon {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 8px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #061008;
+  font-size: 1.5rem;
+  font-weight: 900;
+}
+
+.file-drop span:last-of-type {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.status {
+  margin-top: 16px;
+  padding: 13px 15px;
+  border-radius: 10px;
+  background: #22222a;
+  color: var(--muted);
+}
+
+.status.error {
+  color: var(--danger);
+  border: 1px solid rgba(255, 112, 112, 0.25);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.stat {
+  padding: 18px;
+  background: #121217;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.65rem;
+  font-weight: 800;
+}
+
+.stat-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.file-summary {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.question {
+  margin: 22px 0;
+}
+
+.question label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+select,
+textarea {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #111116;
+  color: var(--text);
+  font: inherit;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.button {
+  border: 0;
+  border-radius: 10px;
+  padding: 13px 18px;
+  background: var(--accent);
+  color: #061008;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: #18d447;
+}
+
+.button.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.output {
+  max-height: 430px;
+  overflow: auto;
+  padding: 18px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-radius: 12px;
+  background: #0d0d11;
+  border: 1px solid var(--border);
+  color: #d8f8df;
+  font-size: 0.86rem;
+}
+
+.copy-status {
+  margin-top: 10px;
+  color: var(--accent);
+  min-height: 1.5em;
+}
+
+footer {
+  padding: 28px 0;
+  text-align: center;
+  color: #777782;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 700px) {
+  .container {
+    padding: 35px 0;
+  }
+
+  .card {
+    padding: 22px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

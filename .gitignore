@@ -1,0 +1,10 @@
+# Do not upload personal Letterboxd exports
+*.zip
+letterboxd-export/
+*.csv
+
+# Local/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
