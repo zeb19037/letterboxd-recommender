@@ -17,19 +17,31 @@ export default async function handler(req, res) {
     const profile = req.body;
 
     if (!profile || typeof profile !== "object") {
-      return res.status(400).json({ error: "Invalid recommendation profile." });
+      return res.status(400).json({
+        error: "Invalid recommendation profile."
+      });
     }
 
     const payload = JSON.stringify(profile);
 
-    // Basic abuse/cost protection. The browser already sends a compact profile.
+    // Basic abuse/cost protection.
     if (payload.length > 50000) {
       return res.status(413).json({
         error: "Recommendation profile is too large."
       });
     }
 
-    const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+    /*
+     * Primary model:
+     * Use a lighter model than Gemini 3.8 Flash to reduce the chance
+     * of capacity-related 503 errors.
+     *
+     * Fallback:
+     * If the primary model remains unavailable after retries,
+     * try an even lighter model.
+     */
+    const primaryModel = "gemini-3.6-flash";
+    const fallbackModel = "gemini-3.5-flash-lite";
 
     const systemInstruction = `
 You are FilmMatch, a highly personalized movie recommendation assistant.
@@ -64,7 +76,20 @@ Use this format:
 **What to expect:** ...
 
 ## 2. Title (Year)
-...
+**Why it fits:** ...
+**What to expect:** ...
+
+## 3. Title (Year)
+**Why it fits:** ...
+**What to expect:** ...
+
+## 4. Title (Year)
+**Why it fits:** ...
+**What to expect:** ...
+
+## 5. Title (Year)
+**Why it fits:** ...
+**What to expect:** ...
 
 Finish with:
 
@@ -80,40 +105,160 @@ ${payload}
 Generate the personalized recommendations now.
 `;
 
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": process.env.GEMINI_API_KEY
-        },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: systemInstruction }]
-          },
-          contents: [
+    /*
+     * Gemini can temporarily return 503/429/5xx when capacity is limited.
+     * Retry those errors using exponential backoff before giving up.
+     */
+    async function callGemini(model, maxRetries = 3) {
+      let lastResult = null;
+
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
             {
-              role: "user",
-              parts: [{ text: userPrompt }]
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": process.env.GEMINI_API_KEY
+              },
+              body: JSON.stringify({
+                system_instruction: {
+                  parts: [{ text: systemInstruction }]
+                },
+                contents: [
+                  {
+                    role: "user",
+                    parts: [{ text: userPrompt }]
+                  }
+                ],
+                generationConfig: {
+                  temperature: 0.7,
+                  maxOutputTokens: 1800
+                }
+              })
             }
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 1800
+          );
+
+          const result = await response.json();
+          lastResult = { response, result };
+
+          // Successful request.
+          if (response.ok) {
+            return lastResult;
           }
-        })
+
+          /*
+           * Only retry temporary/transient errors.
+           * Do NOT retry authentication, invalid-request, or other
+           * permanent client errors.
+           */
+          const retryable =
+            response.status === 408 ||
+            response.status === 429 ||
+            response.status === 500 ||
+            response.status === 502 ||
+            response.status === 503 ||
+            response.status === 504;
+
+          if (!retryable || attempt === maxRetries) {
+            return lastResult;
+          }
+
+          // Exponential backoff: 2s, 4s, 8s.
+          const delay = 2000 * Math.pow(2, attempt);
+
+          console.log(
+            `Gemini ${model} returned ${response.status}. ` +
+            `Retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries}).`
+          );
+
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } catch (error) {
+          /*
+           * Network failures are also temporary in many cases,
+           * so retry them using the same backoff strategy.
+           */
+          if (attempt === maxRetries) {
+            throw error;
+          }
+
+          const delay = 2000 * Math.pow(2, attempt);
+
+          console.log(
+            `Gemini network error. Retrying in ${delay}ms ` +
+            `(attempt ${attempt + 1}/${maxRetries}).`
+          );
+
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
-    );
 
-    const result = await geminiResponse.json();
+      return lastResult;
+    }
 
-    if (!geminiResponse.ok) {
-      console.error("Gemini API error:", result);
+    /*
+     * First try the lighter primary model.
+     */
+    let geminiResult = await callGemini(primaryModel);
+
+    /*
+     * If the primary model is unavailable after retries, switch
+     * automatically to the even lighter fallback model.
+     */
+    if (!geminiResult?.response?.ok) {
+      const status = geminiResult?.response?.status;
+
+      const shouldFallback =
+        status === 408 ||
+        status === 429 ||
+        status === 500 ||
+        status === 502 ||
+        status === 503 ||
+        status === 504;
+
+      if (shouldFallback) {
+        console.log(
+          `${primaryModel} remained unavailable. ` +
+          `Trying fallback model ${fallbackModel}.`
+        );
+
+        geminiResult = await callGemini(fallbackModel, 2);
+      }
+    }
+
+    if (!geminiResult?.response?.ok) {
+      console.error(
+        "Gemini API error:",
+        geminiResult?.result || "Unknown Gemini error"
+      );
+
+      const status = geminiResult?.response?.status;
+
+      if (status === 503) {
+        return res.status(503).json({
+          error:
+            "Gemini is temporarily experiencing high demand. " +
+            "Please try again in a moment."
+        });
+      }
+
+      if (status === 429) {
+        return res.status(429).json({
+          error:
+            "The AI service is temporarily rate-limited. " +
+            "Please try again in a moment."
+        });
+      }
+
       return res.status(502).json({
-        error: "The AI provider returned an error. Check your Gemini API configuration."
+        error:
+          "The AI provider returned an error. " +
+          "Please try again."
       });
     }
+
+    const result = geminiResult.result;
 
     const text =
       result?.candidates?.[0]?.content?.parts
@@ -130,8 +275,10 @@ Generate the personalized recommendations now.
     return res.status(200).json({
       recommendations: text
     });
+
   } catch (error) {
     console.error("Recommendation function error:", error);
+
     return res.status(500).json({
       error: "The recommendation service failed unexpectedly."
     });
