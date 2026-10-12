@@ -1,127 +1,94 @@
 
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#111111">
-  <title>Reelwise | Netflix Recommendations</title>
-  <link rel="stylesheet" href="styles.css">
-  <script src="app.js" defer></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#141414">
+  <meta name="description" content="Personalized Netflix recommendations based on your tastes and optional viewing history.">
+  <title>Netflix Recommender</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="./"><span class="brand-mark">R</span> reelwise</a>
-    <span class="muted">Your next watch starts here</span>
-  </header>
-
-  <main class="container">
-    <section class="hero">
-      <p class="eyebrow">YOUR PERSONAL WATCH GUIDE</p>
-      <h1>Find your <span>next obsession.</span></h1>
-      <p>Upload your Netflix viewing history, answer three personalized questions, and discover what to watch next.</p>
-    </section>
-
-    <section id="uploadPanel" class="panel">
-      <p class="eyebrow">STEP 01 · YOUR WATCH HISTORY</p>
-      <h2>Let's get to know your taste.</h2>
-      <p class="muted">Upload the CSV downloaded from Netflix Viewing activity.</p>
-
-      <label class="upload-box" for="historyFile">
-        <span class="upload-icon">↑</span>
-        <strong id="filePrompt">Choose your Netflix history CSV</strong>
-        <span class="muted small">CSV file only</span>
-        <input id="historyFile" type="file" accept=".csv,text/csv">
-      </label>
-
-      <div class="privacy-note">
-        <strong>Privacy first.</strong> Your original CSV is processed in your browser. Only a compact viewing-history summary is sent to Gemini for recommendations.
-      </div>
-
-      <button id="startButton" class="button primary" disabled>
-        Build my watch profile →
-      </button>
-      <p id="uploadStatus" class="status" role="status"></p>
-
-      <details>
-        <summary>How to download your Netflix history</summary>
-        <ol>
-          <li>Open Netflix in your browser and go to Account.</li>
-          <li>Open Profiles and select the profile you use.</li>
-          <li>Open Viewing activity.</li>
-          <li>Choose Download all and upload the CSV here.</li>
-        </ol>
-      </details>
-    </section>
-
-    <section id="chatPanel" class="panel hidden">
-      <p class="eyebrow">STEP 02 · YOUR PERSONALIZED INTERVIEW</p>
-
-      <div class="profile">
+  <main class="app-shell">
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark">N</span>
         <div>
-          <strong>Your watch profile</strong>
-          <p id="profileSummary" class="muted small"></p>
-        </div>
-        <button id="changeFileButton" class="text-button">Change file</button>
-      </div>
-
-      <div class="progress">
-        <div class="progress-label">
-          <span id="progressText">QUESTION 1 OF 3</span>
-          <span id="progressPercent">33%</span>
-        </div>
-        <div class="progress-track">
-          <div id="progressBar" class="progress-bar"></div>
+          <h1>Netflix Recommender</h1>
+          <p>Your next favorite is waiting.</p>
         </div>
       </div>
+      <button id="reset-button" class="text-button" type="button">
+        Start over
+      </button>
+    </header>
 
-      <div id="chatMessages" class="messages" aria-live="polite"></div>
-
-      <div id="questionArea" class="hidden">
-        <h2 id="questionPrompt"></h2>
-        <div id="optionList" class="options"></div>
-
-        <form id="answerForm">
-          <label class="sr-only" for="customAnswer">Your answer</label>
-          <input id="customAnswer" maxlength="240"
-            placeholder="Or type your own answer...">
-          <button class="button primary" type="submit">Answer →</button>
-        </form>
-      </div>
-
-      <div id="loadingArea" class="loading hidden" role="status">
-        <span class="spinner"></span>
-        <span id="loadingText">Thinking about your watch history...</span>
-      </div>
-
-      <div id="recommendationArea" class="hidden">
-        <p class="eyebrow">STEP 03 · PICKS FOR YOU</p>
-        <h2>Your next-watch shortlist</h2>
-        <p class="muted small">AI-generated suggestions. Check Netflix to confirm availability in your region.</p>
-        <div id="recommendationList" class="recommendations"></div>
-
-        <div class="feedback-panel">
-          <p class="eyebrow">NOT QUITE YOUR VIBE?</p>
-          <h2>Let's try again.</h2>
-          <p class="muted">Tell us what was wrong with these suggestions. Your previous answers will be remembered for the next round.</p>
-
-          <form id="feedbackForm">
-            <label class="sr-only" for="feedbackInput">Recommendation feedback</label>
-            <textarea id="feedbackInput" maxlength="800" rows="3"
-              placeholder="Too dark, already watched, wrong genre, too slow..."></textarea>
-            <div class="actions">
-              <button id="retryButton" class="button primary" type="submit">Try again ↗</button>
-              <button id="startOverButton" class="button secondary" type="button">Start over</button>
-            </div>
-          </form>
-          <p id="feedbackStatus" class="status" role="status"></p>
-        </div>
-      </div>
-
-      <p class="disclaimer">Reelwise is an independent prototype and is not affiliated with Netflix.</p>
+    <section class="intro-panel">
+      <span class="eyebrow">YOUR PERSONAL WATCH GUIDE</span>
+      <h2>Less scrolling.<br><span>Better watching.</span></h2>
+      <p>
+        Tell the chatbot what you're in the mood for.
+        Uploading your Netflix viewing history is optional.
+      </p>
     </section>
-  </main>
 
-  <footer>REELWISE · YOUR TASTE, YOUR NEXT WATCH</footer>
+    <section class="chat-panel" aria-label="Recommendation chat">
+      <div class="chat-heading">
+        <div class="assistant-avatar">N</div>
+        <div>
+          <h2>Recommendation assistant</h2>
+          <p><span class="status-dot"></span> Ready to find something good</p>
+        </div>
+      </div>
+
+      <div
+        id="messages"
+        class="messages"
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions"
+      ></div>
+
+      <div id="choices" class="choices" aria-label="Suggested answers"></div>
+
+      <div id="recommendations" class="recommendations"></div>
+
+      <div id="upload-status" class="upload-status" aria-live="polite"></div>
+
+      <form id="answer-form" class="answer-form">
+        <label class="sr-only" for="answer-input">
+          Your answer
+        </label>
+        <input
+          id="answer-input"
+          type="text"
+          placeholder="Choose an option or type your own answer..."
+          autocomplete="off"
+          maxlength="1000"
+        >
+        <button id="send-button" type="submit" aria-label="Send answer">
+          Send
+        </button>
+      </form>
+
+      <p class="privacy-note">
+        Your original CSV is processed in your browser. A summary of your
+        viewing history may be sent to the AI service to personalize results.
+      </p>
+
+      <input
+        id="history-file"
+        type="file"
+        accept=".csv,text/csv"
+        hidden
+      >
+    </section>
+
+    <footer class="app-footer">
+      Recommendations are AI-generated. Check Netflix for current availability.
+    </footer>
+  </main>
 </body>
 </html>
