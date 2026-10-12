@@ -1,137 +1,127 @@
-<!DOCTYPE html>
+
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="A privacy-first Letterboxd AI movie recommender.">
-  <title>FilmMatch — Letterboxd AI Recommender</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111111">
+  <title>Reelwise | Netflix Recommendations</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
 </head>
 <body>
+  <header class="topbar">
+    <a class="brand" href="./"><span class="brand-mark">R</span> reelwise</a>
+    <span class="muted">Your next watch starts here</span>
+  </header>
+
   <main class="container">
-    <header class="hero">
-      <p class="eyebrow">LETTERBOXD • AI RECOMMENDER</p>
-      <h1>Find your next movie.</h1>
-      <p class="subtitle">
-        Upload your Letterboxd export, answer a few questions, and get
-        recommendations based on your actual movie taste.
-      </p>
-    </header>
+    <section class="hero">
+      <p class="eyebrow">YOUR PERSONAL WATCH GUIDE</p>
+      <h1>Find your <span>next obsession.</span></h1>
+      <p>Upload your Netflix viewing history, answer three personalized questions, and discover what to watch next.</p>
+    </section>
 
-    <section class="card" id="uploadCard">
-      <div class="step">01</div>
-      <h2>Upload your Letterboxd export</h2>
-      <p>
-        In Letterboxd, go to <strong>Settings → Import & Export → Export Your Data</strong>
-        and download the ZIP. Your ZIP is processed in your browser and is not uploaded
-        to the recommendation API.
-      </p>
+    <section id="uploadPanel" class="panel">
+      <p class="eyebrow">STEP 01 · YOUR WATCH HISTORY</p>
+      <h2>Let's get to know your taste.</h2>
+      <p class="muted">Upload the CSV downloaded from Netflix Viewing activity.</p>
 
-      <label class="file-drop" id="dropZone" for="zipInput">
+      <label class="upload-box" for="historyFile">
         <span class="upload-icon">↑</span>
-        <strong>Choose your Letterboxd ZIP</strong>
-        <span>or drag and drop it here</span>
-        <input id="zipInput" type="file" accept=".zip,application/zip">
+        <strong id="filePrompt">Choose your Netflix history CSV</strong>
+        <span class="muted small">CSV file only</span>
+        <input id="historyFile" type="file" accept=".csv,text/csv">
       </label>
 
-      <div id="uploadStatus" class="status hidden"></div>
+      <div class="privacy-note">
+        <strong>Privacy first.</strong> Your original CSV is processed in your browser. Only a compact viewing-history summary is sent to Gemini for recommendations.
+      </div>
+
+      <button id="startButton" class="button primary" disabled>
+        Build my watch profile →
+      </button>
+      <p id="uploadStatus" class="status" role="status"></p>
+
+      <details>
+        <summary>How to download your Netflix history</summary>
+        <ol>
+          <li>Open Netflix in your browser and go to Account.</li>
+          <li>Open Profiles and select the profile you use.</li>
+          <li>Open Viewing activity.</li>
+          <li>Choose Download all and upload the CSV here.</li>
+        </ol>
+      </details>
     </section>
 
-    <section class="card hidden" id="profileCard">
-      <div class="step">02</div>
-      <h2>Your Letterboxd profile</h2>
-      <div id="profileSummary" class="stats-grid"></div>
-      <div id="fileSummary" class="file-summary"></div>
+    <section id="chatPanel" class="panel hidden">
+      <p class="eyebrow">STEP 02 · YOUR PERSONALIZED INTERVIEW</p>
+
+      <div class="profile">
+        <div>
+          <strong>Your watch profile</strong>
+          <p id="profileSummary" class="muted small"></p>
+        </div>
+        <button id="changeFileButton" class="text-button">Change file</button>
+      </div>
+
+      <div class="progress">
+        <div class="progress-label">
+          <span id="progressText">QUESTION 1 OF 3</span>
+          <span id="progressPercent">33%</span>
+        </div>
+        <div class="progress-track">
+          <div id="progressBar" class="progress-bar"></div>
+        </div>
+      </div>
+
+      <div id="chatMessages" class="messages" aria-live="polite"></div>
+
+      <div id="questionArea" class="hidden">
+        <h2 id="questionPrompt"></h2>
+        <div id="optionList" class="options"></div>
+
+        <form id="answerForm">
+          <label class="sr-only" for="customAnswer">Your answer</label>
+          <input id="customAnswer" maxlength="240"
+            placeholder="Or type your own answer...">
+          <button class="button primary" type="submit">Answer →</button>
+        </form>
+      </div>
+
+      <div id="loadingArea" class="loading hidden" role="status">
+        <span class="spinner"></span>
+        <span id="loadingText">Thinking about your watch history...</span>
+      </div>
+
+      <div id="recommendationArea" class="hidden">
+        <p class="eyebrow">STEP 03 · PICKS FOR YOU</p>
+        <h2>Your next-watch shortlist</h2>
+        <p class="muted small">AI-generated suggestions. Check Netflix to confirm availability in your region.</p>
+        <div id="recommendationList" class="recommendations"></div>
+
+        <div class="feedback-panel">
+          <p class="eyebrow">NOT QUITE YOUR VIBE?</p>
+          <h2>Let's try again.</h2>
+          <p class="muted">Tell us what was wrong with these suggestions. Your previous answers will be remembered for the next round.</p>
+
+          <form id="feedbackForm">
+            <label class="sr-only" for="feedbackInput">Recommendation feedback</label>
+            <textarea id="feedbackInput" maxlength="800" rows="3"
+              placeholder="Too dark, already watched, wrong genre, too slow..."></textarea>
+            <div class="actions">
+              <button id="retryButton" class="button primary" type="submit">Try again ↗</button>
+              <button id="startOverButton" class="button secondary" type="button">Start over</button>
+            </div>
+          </form>
+          <p id="feedbackStatus" class="status" role="status"></p>
+        </div>
+      </div>
+
+      <p class="disclaimer">Reelwise is an independent prototype and is not affiliated with Netflix.</p>
     </section>
-
-    <section class="card hidden" id="questionsCard">
-      <div class="step">03</div>
-      <h2>What are you in the mood for?</h2>
-
-      <div class="question">
-        <label for="mood">What kind of movie do you want?</label>
-        <select id="mood">
-          <option value="anything">Anything</option>
-          <option value="fun">Fun / entertaining</option>
-          <option value="thoughtful">Thought-provoking</option>
-          <option value="emotional">Emotional</option>
-          <option value="intense">Intense / suspenseful</option>
-          <option value="relaxing">Relaxing / easy to watch</option>
-          <option value="strange">Weird / unconventional</option>
-        </select>
-      </div>
-
-      <div class="question">
-        <label for="genre">Any genre preference?</label>
-        <select id="genre">
-          <option value="any">No preference</option>
-          <option>Action</option>
-          <option>Adventure</option>
-          <option>Animation</option>
-          <option>Comedy</option>
-          <option>Crime</option>
-          <option>Documentary</option>
-          <option>Drama</option>
-          <option>Fantasy</option>
-          <option>Horror</option>
-          <option>Mystery</option>
-          <option>Romance</option>
-          <option>Science Fiction</option>
-          <option>Thriller</option>
-        </select>
-      </div>
-
-      <div class="question">
-        <label for="length">Preferred length?</label>
-        <select id="length">
-          <option value="any">Any length</option>
-          <option value="short">Under 100 minutes</option>
-          <option value="medium">100–140 minutes</option>
-          <option value="long">Over 140 minutes</option>
-        </select>
-      </div>
-
-      <div class="question">
-        <label for="familiarity">How adventurous should the recommendations be?</label>
-        <select id="familiarity">
-          <option value="safe">Mostly familiar / highly likely to enjoy</option>
-          <option value="balanced" selected>A balance of familiar and new</option>
-          <option value="adventurous">Surprise me / go outside my usual taste</option>
-        </select>
-      </div>
-
-      <div class="question">
-        <label for="extra">Anything else?</label>
-        <textarea id="extra" rows="3" maxlength="1000"
-          placeholder="Example: I have 2 hours tonight and want something with a great ending."></textarea>
-      </div>
-
-      <button id="getRecommendations" class="button">Get my recommendations</button>
-      <div id="aiStatus" class="status hidden"></div>
-    </section>
-
-    <section class="card hidden" id="resultCard">
-      <div class="step">04</div>
-      <h2>Your recommendations</h2>
-      <div id="recommendationOutput" class="recommendations"></div>
-
-      <div class="actions">
-        <button id="copyResults" class="button secondary">Copy recommendations</button>
-        <button id="downloadProfile" class="button secondary">Download profile JSON</button>
-      </div>
-      <div id="copyStatus" class="copy-status"></div>
-    </section>
-
-    <footer>
-      <p>
-        Your Letterboxd ZIP is processed locally. Only the compact recommendation
-        profile is sent to the AI endpoint. No profile database or chat history is used.
-      </p>
-    </footer>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="app.js"></script>
+  <footer>REELWISE · YOUR TASTE, YOUR NEXT WATCH</footer>
 </body>
 </html>
