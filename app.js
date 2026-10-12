@@ -1,325 +1,469 @@
-let letterboxdData = null;
-let generatedProfile = null;
-let latestRecommendations = "";
 
-const $ = (id) => document.getElementById(id);
+const $ = id => document.getElementById(id);
 
-const zipInput = $("zipInput");
-const dropZone = $("dropZone");
+const state = {
+  history: "",
+  stats: null,
+  answers: [],
+  question: null,
+  recommendations: [],
+  rejected: [],
+  feedbackHistory: [],
+  busy: false
+};
 
-zipInput.addEventListener("change", (event) => {
-  const file = event.target.files?.[0];
-  if (file) processZip(file);
-});
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = "", quoted = false;
 
-["dragenter", "dragover"].forEach((eventName) => {
-  dropZone.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    dropZone.classList.add("dragging");
-  });
-});
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
 
-["dragleave", "drop"].forEach((eventName) => {
-  dropZone.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    dropZone.classList.remove("dragging");
-  });
-});
-
-dropZone.addEventListener("drop", (event) => {
-  const file = event.dataTransfer.files?.[0];
-  if (file) processZip(file);
-});
-
-$("getRecommendations").addEventListener("click", getRecommendations);
-$("copyResults").addEventListener("click", copyResults);
-$("downloadProfile").addEventListener("click", downloadProfile);
-
-async function processZip(file) {
-  setStatus(`Reading ${file.name}…`);
-
-  try {
-    if (!file.name.toLowerCase().endsWith(".zip")) {
-      throw new Error("Please select the ZIP file downloaded from Letterboxd.");
+    if (quoted) {
+      if (c === '"' && text[i + 1] === '"') {
+        field += '"';
+        i++;
+      } else if (c === '"') {
+        quoted = false;
+      } else {
+        field += c;
+      }
+    } else if (c === '"' && !field) {
+      quoted = true;
+    } else if (c === ",") {
+      row.push(field);
+      field = "";
+    } else if (c === "\n") {
+      row.push(field.replace(/\r$/, ""));
+      rows.push(row);
+      row = [];
+      field = "";
+    } else {
+      field += c;
     }
-
-    const zip = await JSZip.loadAsync(file);
-    const csvFiles = Object.values(zip.files)
-      .filter((entry) => !entry.dir && entry.name.toLowerCase().endsWith(".csv"));
-
-    if (!csvFiles.length) {
-      throw new Error("No CSV files were found inside this ZIP.");
-    }
-
-    const parsed = {};
-
-    for (const entry of csvFiles) {
-      const csvText = await entry.async("text");
-      parsed[entry.name] = parseCsv(csvText);
-    }
-
-    letterboxdData = normalizeLetterboxdData(parsed);
-    renderProfile(letterboxdData);
-
-    $("profileCard").classList.remove("hidden");
-    $("questionsCard").classList.remove("hidden");
-
-    setStatus(
-      `Loaded ${csvFiles.length} CSV files successfully. Your Letterboxd ZIP was processed locally.`
-    );
-  } catch (error) {
-    console.error(error);
-    setStatus(error.message || "Something went wrong while reading the ZIP.", true);
-  }
-}
-
-function parseCsv(text) {
-  const result = Papa.parse(text, {
-    header: true,
-    skipEmptyLines: true,
-    transformHeader: (header) => header.trim()
-  });
-
-  if (result.errors?.length) {
-    console.warn("CSV parsing warnings:", result.errors);
   }
 
-  return result.data;
+  if (field || row.length) {
+    row.push(field.replace(/\r$/, ""));
+    rows.push(row);
+  }
+
+  return rows.filter(r => r.some(v => v.trim()));
 }
 
-function normalizeLetterboxdData(files) {
-  const rowsFor = (filename) => {
-    const key = Object.keys(files).find(
-      (name) => name.toLowerCase().endsWith(`/${filename}`) ||
-                name.toLowerCase() === filename
-    );
-    return key ? files[key] : [];
-  };
-
-  const ratings = rowsFor("ratings.csv");
-  const watched = rowsFor("watched.csv");
-  const diary = rowsFor("diary.csv");
-  const reviews = rowsFor("reviews.csv");
-  const watchlist = rowsFor("watchlist.csv");
-  const profile = rowsFor("profile.csv");
-
-  const ratingsByFilm = new Map(
-    ratings
-      .filter(row => row.Name)
-      .map(row => [filmKey(row), row])
+function inferSeries(title) {
+  const match = title.match(
+    /^(.+?):\s*(?:Season\s+\d+|Series\s+\d+|Part\s+\d+|Volume\s+\d+)(?:\s*:|$)/i
   );
 
-  const films = dedupeByKey([
-    ...watched.map(row => enrichFilm(row, ratingsByFilm)),
-    ...ratings.map(row => enrichFilm(row, ratingsByFilm)),
-    ...diary.map(row => enrichFilm(row, ratingsByFilm)),
-    ...reviews.map(row => enrichFilm(row, ratingsByFilm))
-  ]);
+  if (match) return match[1].trim();
 
-  const ratedFilms = films.filter(f => Number.isFinite(f.rating));
-
-  // Keep the request small enough for a serverless function while preserving
-  // enough taste information for the model to identify patterns.
-  const sortedRated = [...ratedFilms].sort((a, b) => b.rating - a.rating);
-
-  return {
-    profile,
-    films,
-    ratings,
-    watched,
-    diary,
-    reviews,
-    watchlist,
-    files: Object.keys(files),
-    stats: {
-      rated: ratedFilms.length,
-      watched: watched.length,
-      diaryEntries: diary.length,
-      reviews: reviews.length,
-      watchlist: watchlist.length,
-      fiveStar: ratedFilms.filter(f => f.rating === 5).length,
-      fourPlus: ratedFilms.filter(f => f.rating >= 4).length
-    },
-    examples: {
-      topRated: sortedRated.slice(0, 40).map(compactFilm),
-      lowestRated: [...ratedFilms]
-        .sort((a, b) => a.rating - b.rating)
-        .slice(0, 20)
-        .map(compactFilm),
-      recentDiary: [...diary]
-        .slice(-30)
-        .map(row => ({
-          title: row.Name || row.Title || "",
-          year: row.Year || "",
-          date: row.Date || row.WatchedDate || "",
-          rating: Number(row.Rating) || null
-        })),
-      watchlist: watchlist.slice(0, 40).map(row => ({
-        title: row.Name || row.Title || "",
-        year: row.Year || ""
-      }))
-    }
-  };
+  // Some Netflix entries don't contain an explicit season label.
+  return title;
 }
 
-function compactFilm(film) {
-  return {
-    title: film.title,
-    year: film.year,
-    rating: film.rating
-  };
-}
+function buildSummary(csvText) {
+  const rows = parseCSV(csvText);
 
-function enrichFilm(row, ratingsByFilm) {
-  const ratingRow = ratingsByFilm.get(filmKey(row));
-  const ratingValue = Number(row.Rating || ratingRow?.Rating);
-
-  return {
-    title: row.Name || row.Title || "",
-    year: row.Year || "",
-    rating: Number.isFinite(ratingValue) && ratingValue > 0 ? ratingValue : null,
-    watchedDate: row.Date || row.WatchedDate || "",
-    rewatch: row.Rewatch || "",
-    tags: row.Tags || "",
-    review: row.Review || ""
-  };
-}
-
-function filmKey(row) {
-  const name = (row.Name || row.Title || "").trim().toLowerCase();
-  const year = (row.Year || "").trim();
-  return `${name}|${year}`;
-}
-
-function dedupeByKey(rows) {
-  const map = new Map();
-
-  for (const row of rows) {
-    const key = filmKey(row);
-    if (!key || key === "|") continue;
-    const existing = map.get(key) || {};
-    map.set(key, { ...existing, ...row });
+  if (rows.length < 2) {
+    throw new Error("The CSV appears to be empty.");
   }
 
-  return [...map.values()];
-}
+  const headers = rows[0].map(h =>
+    h.trim().toLowerCase().replace(/^\uFEFF/, "")
+  );
 
-function renderProfile(data) {
-  const stats = data.stats;
+  const titleCol = headers.findIndex(h => h === "title");
+  const dateCol = headers.findIndex(h => h === "date");
 
-  $("profileSummary").innerHTML = `
-    <div class="stat"><span class="stat-value">${stats.rated}</span><span class="stat-label">Rated films</span></div>
-    <div class="stat"><span class="stat-value">${stats.watched}</span><span class="stat-label">Watched entries</span></div>
-    <div class="stat"><span class="stat-value">${stats.fiveStar}</span><span class="stat-label">5-star ratings</span></div>
-    <div class="stat"><span class="stat-value">${stats.watchlist}</span><span class="stat-label">Watchlist</span></div>
-  `;
+  if (titleCol < 0) {
+    throw new Error(
+      'Could not find the "Title" column. Upload your Netflix Viewing activity CSV.'
+    );
+  }
 
-  $("fileSummary").textContent =
-    `Detected ${data.files.length} CSV files: ${data.files.join(", ")}`;
-}
+  const entries = rows.slice(1)
+    .map(r => ({
+      title: String(r[titleCol] || "").trim(),
+      date: dateCol >= 0 ? String(r[dateCol] || "").trim() : ""
+    }))
+    .filter(e => e.title);
 
-function buildProfile() {
+  if (!entries.length) {
+    throw new Error("No viewing entries were found.");
+  }
+
+  const counts = new Map();
+  const exactCounts = new Map();
+
+  for (const entry of entries) {
+    const series = inferSeries(entry.title);
+    counts.set(series, (counts.get(series) || 0) + 1);
+    exactCounts.set(
+      entry.title,
+      (exactCounts.get(entry.title) || 0) + 1
+    );
+  }
+
+  const ranked = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1]);
+
+  const recent = entries
+    .filter(e => e.date)
+    .slice()
+    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date))
+    .slice(0, 15);
+
+  const summary = [
+    "Netflix viewing-history summary.",
+    "This represents watched content, not ratings or confirmed favorites.",
+    "Total viewing entries: " + entries.length,
+    "Distinct exact titles: " + exactCounts.size,
+    "Inferred series/title groups: " + counts.size,
+    "Most frequent groups:",
+    ...ranked.slice(0, 30).map(
+      ([title, count]) => "- " + title.slice(0, 100) + ": " + count + " entries"
+    ),
+    "Recent viewing entries:",
+    ...recent.map(e => "- " + e.date + ": " + e.title.slice(0, 120)),
+    "Do not assume frequent viewing means the user enjoyed the title."
+  ].join("\n");
+
   return {
-    source: "Letterboxd export",
-    profile: {
-      stats: letterboxdData.stats,
-      topRatedFilms: letterboxdData.examples.topRated,
-      lowestRatedFilms: letterboxdData.examples.lowestRated,
-      recentDiary: letterboxdData.examples.recentDiary,
-      watchlist: letterboxdData.examples.watchlist
-    },
-    currentPreferences: {
-      mood: $("mood").value,
-      genre: $("genre").value,
-      length: $("length").value,
-      familiarity: $("familiarity").value,
-      extra: $("extra").value.trim()
+    summary: summary.slice(0, 10000),
+    stats: {
+      entries: entries.length,
+      groups: counts.size
     }
   };
 }
 
-async function getRecommendations() {
-  if (!letterboxdData) return;
+function message(text, who = "assistant") {
+  const el = document.createElement("div");
+  el.className = "message " + who;
+  el.textContent = text;
+  $("chatMessages").appendChild(el);
+}
 
-  const button = $("getRecommendations");
-  button.disabled = true;
-  button.textContent = "Analyzing your taste…";
-  setAiStatus("Using your Letterboxd profile and current preferences to generate recommendations…");
+function busy(value, text = "Thinking...") {
+  state.busy = value;
+  $("loadingArea").classList.toggle("hidden", !value);
+  $("loadingText").textContent = text;
+  $("startButton").disabled = value || !$("historyFile").files[0];
+  $("retryButton").disabled = value;
 
-  generatedProfile = buildProfile();
+  document.querySelectorAll(".option-button, #answerForm button")
+    .forEach(button => button.disabled = value);
+}
+
+async function api(payload) {
+  const response = await fetch("/api/recommend", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "The request failed.");
+  }
+
+  return data;
+}
+
+function progress() {
+  const count = state.answers.length;
+  const percent = count >= 3 ? 100 : Math.round((count + 1) / 3 * 100);
+
+  $("progressText").textContent =
+    count >= 3 ? "PREFERENCES COMPLETE" : `QUESTION ${count + 1} OF 3`;
+
+  $("progressPercent").textContent = percent + "%";
+  $("progressBar").style.width = percent + "%";
+}
+
+function showQuestion(question) {
+  state.question = question;
+  $("questionPrompt").textContent = question.text;
+  $("optionList").replaceChildren();
+
+  question.options.slice(0, 4).forEach(option => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "option-button";
+    button.textContent = option;
+    button.addEventListener("click", () => answer(option));
+    $("optionList").appendChild(button);
+  });
+
+  $("questionArea").classList.remove("hidden");
+  $("recommendationArea").classList.add("hidden");
+  progress();
+}
+
+async function start() {
+  if (state.busy) return;
+
+  const file = $("historyFile").files[0];
+  if (!file) return;
+
+  $("uploadStatus").textContent = "";
+  busy(true, "Reading your CSV locally...");
 
   try {
-    const response = await fetch("/api/recommend", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(generatedProfile)
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      throw new Error("Please choose a CSV file.");
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      throw new Error("The file is too large. Please use a CSV under 15 MB.");
+    }
+
+    const result = buildSummary(await file.text());
+
+    state.history = result.summary;
+    state.stats = result.stats;
+    state.answers = [];
+    state.recommendations = [];
+    state.rejected = [];
+    state.feedbackHistory = [];
+
+    $("chatMessages").replaceChildren();
+    $("recommendationArea").classList.add("hidden");
+    $("uploadPanel").classList.add("hidden");
+    $("chatPanel").classList.remove("hidden");
+    $("profileSummary").textContent =
+      result.stats.entries.toLocaleString() + " viewing entries · " +
+      result.stats.groups.toLocaleString() + " inferred groups";
+
+    message(
+      "I've analyzed your viewing history. It shows what you watched, not necessarily what you liked. Let's narrow down what you want to watch now."
+    );
+
+    busy(true, "Personalizing your first question...");
+
+    const resultQuestion = await api({
+      mode: "question",
+      historySummary: state.history,
+      answers: [],
+      questionNumber: 0
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || "The recommendation service returned an error.");
-    }
-
-    latestRecommendations = data.recommendations || "";
-    renderRecommendations(latestRecommendations);
-
-    $("resultCard").classList.remove("hidden");
-    $("resultCard").scrollIntoView({ behavior: "smooth", block: "start" });
-    setAiStatus("Recommendations generated.");
+    showQuestion(resultQuestion.question);
   } catch (error) {
-    console.error(error);
-    setAiStatus(error.message || "Unable to generate recommendations.", true);
+    $("uploadStatus").textContent = error.message;
+    $("chatPanel").classList.add("hidden");
+    $("uploadPanel").classList.remove("hidden");
   } finally {
-    button.disabled = false;
-    button.textContent = "Get my recommendations";
+    busy(false);
   }
 }
 
-function renderRecommendations(text) {
-  // Gemini returns plain text. Keep it text-only rather than interpreting
-  // arbitrary model output as HTML.
-  const output = $("recommendationOutput");
-  output.textContent = text;
-}
+async function answer(value) {
+  const text = String(value || "").trim();
 
-async function copyResults() {
-  if (!latestRecommendations) return;
+  if (!text || state.busy || state.answers.length >= 3) return;
+
+  state.answers.push({
+    question: state.question.text,
+    answer: text
+  });
+
+  message(text, "user");
+  $("customAnswer").value = "";
+  $("questionArea").classList.add("hidden");
+
+  busy(true, state.answers.length < 3
+    ? "Using that answer to shape your next question..."
+    : "Finding recommendations for you...");
 
   try {
-    await navigator.clipboard.writeText(latestRecommendations);
-    $("copyStatus").textContent = "Copied to clipboard.";
-  } catch {
-    $("copyStatus").textContent = "Copy failed. Select the recommendations manually.";
+    if (state.answers.length < 3) {
+      const result = await api({
+        mode: "question",
+        historySummary: state.history,
+        answers: state.answers,
+        questionNumber: state.answers.length
+      });
+
+      message("Thanks—that helps me narrow it down.");
+      showQuestion(result.question);
+    } else {
+      await recommend("");
+    }
+  } catch (error) {
+    state.answers.pop();
+    $("questionArea").classList.remove("hidden");
+    message("I couldn't complete that step: " + error.message);
+  } finally {
+    busy(false);
   }
 }
 
-function downloadProfile() {
-  if (!generatedProfile) return;
+async function recommend(feedback) {
+  const result = await api({
+    mode: "recommend",
+    historySummary: state.history,
+    answers: state.answers,
+    feedback: feedback || "",
+    feedbackHistory: state.feedbackHistory.slice(-4),
+    rejectedTitles: state.rejected.slice(-30)
+  });
 
-  const blob = new Blob(
-    [JSON.stringify(generatedProfile, null, 2)],
-    { type: "application/json" }
-  );
+  const items = Array.isArray(result.recommendations)
+    ? result.recommendations
+    : [];
 
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = "letterboxd-recommendation-profile.json";
-  anchor.click();
-  URL.revokeObjectURL(url);
+  render(items);
 }
 
-function setStatus(message, isError = false) {
-  const element = $("uploadStatus");
-  element.textContent = message;
-  element.classList.remove("hidden", "error");
-  if (isError) element.classList.add("error");
+function render(items) {
+  const list = $("recommendationList");
+  list.replaceChildren();
+
+  // Exclude results already shown in subsequent rounds.
+  state.recommendations.forEach(item => {
+    if (item.title && !state.rejected.includes(item.title)) {
+      state.rejected.push(item.title);
+    }
+  });
+
+  state.recommendations = items;
+
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "No recommendations were returned. Add feedback and retry.";
+    list.appendChild(empty);
+  }
+
+  items.forEach((item, index) => {
+    const card = document.createElement("article");
+    card.className = "rec-card";
+
+    const number = document.createElement("div");
+    number.className = "rec-number";
+    number.textContent = String(index + 1).padStart(2, "0");
+
+    const content = document.createElement("div");
+    content.className = "rec-content";
+
+    const title = document.createElement("h3");
+    title.className = "rec-title";
+    title.textContent = item.title || "Untitled";
+
+    const meta = document.createElement("div");
+    meta.className = "rec-meta";
+    meta.textContent = [item.year, item.type, item.genres]
+      .filter(Boolean).join(" · ");
+
+    const why = document.createElement("p");
+    why.className = "rec-why";
+    why.textContent = item.why || "Suggested based on your preferences.";
+
+    const match = document.createElement("p");
+    match.className = "match-label";
+    match.textContent = item.match || "Why it may fit";
+
+    const link = document.createElement("a");
+    link.className = "rec-link";
+    link.href = "https://www.netflix.com/search?q=" +
+      encodeURIComponent(item.title || "");
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Search Netflix ↗";
+
+    content.append(title, meta, why, match, link);
+    card.append(number, content);
+    list.appendChild(card);
+  });
+
+  $("recommendationArea").classList.remove("hidden");
+  $("questionArea").classList.add("hidden");
+  $("recommendationArea").scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
 }
 
-function setAiStatus(message, isError = false) {
-  const element = $("aiStatus");
-  element.textContent = message;
-  element.classList.remove("hidden", "error");
-  if (isError) element.classList.add("error");
-}
+$("historyFile").addEventListener("change", () => {
+  const file = $("historyFile").files[0];
+  $("filePrompt").textContent = file
+    ? file.name
+    : "Choose your Netflix history CSV";
+
+  $("startButton").disabled = !file || state.busy;
+  $("uploadStatus").textContent = "";
+});
+
+$("startButton").addEventListener("click", start);
+
+$("answerForm").addEventListener("submit", event => {
+  event.preventDefault();
+  answer($("customAnswer").value);
+});
+
+$("changeFileButton").addEventListener("click", () => {
+  $("chatPanel").classList.add("hidden");
+  $("uploadPanel").classList.remove("hidden");
+  $("historyFile").value = "";
+  $("filePrompt").textContent = "Choose your Netflix history CSV";
+  $("startButton").disabled = true;
+});
+
+$("feedbackForm").addEventListener("submit", async event => {
+  event.preventDefault();
+
+  if (state.busy) return;
+
+  const feedback = $("feedbackInput").value.trim();
+
+  if (!feedback) {
+    $("feedbackStatus").textContent =
+      "Tell me what you want changed before retrying.";
+    return;
+  }
+
+  state.feedbackHistory.push({
+    feedback,
+    titles: state.recommendations.map(r => r.title)
+  });
+
+  $("feedbackStatus").textContent = "";
+  busy(true, "Refining your recommendations...");
+
+  try {
+    await recommend(feedback);
+    $("feedbackInput").value = "";
+    $("feedbackStatus").textContent =
+      "Updated shortlist ready. Your three answers are still included.";
+  } catch (error) {
+    $("feedbackStatus").textContent = error.message;
+  } finally {
+    busy(false);
+  }
+});
+
+$("startOverButton").addEventListener("click", () => {
+  Object.assign(state, {
+    history: "",
+    stats: null,
+    answers: [],
+    question: null,
+    recommendations: [],
+    rejected: [],
+    feedbackHistory: [],
+    busy: false
+  });
+
+  $("chatMessages").replaceChildren();
+  $("recommendationList").replaceChildren();
+  $("feedbackInput").value = "";
+  $("feedbackStatus").textContent = "";
+  $("chatPanel").classList.add("hidden");
+  $("uploadPanel").classList.remove("hidden");
+  $("historyFile").value = "";
+  $("filePrompt").textContent = "Choose your Netflix history CSV";
+  $("startButton").disabled = true;
+});
