@@ -160,7 +160,6 @@ function renderStartChoices() {
   );
 }
 
-// Explain the data use BEFORE opening the file picker.
 function showPrivacyConsent() {
   state.phase = "consent";
   choicesEl.replaceChildren();
@@ -341,7 +340,6 @@ function parseCSV(text) {
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];
 
-  // The user may cancel the file picker.
   if (!file) {
     if (state.phase === "consent") {
       appendMessage(
@@ -685,12 +683,9 @@ async function generateRecommendations(feedback = "") {
         if (choice === "Try recommendations again") {
           generateRecommendations(feedback);
         } else if (choice === "Adjust my preferences") {
-          if (state.flow === "history") {
-            startManualFlow();
-          } else {
-            state.phase = "asking";
-            askManualQuestion();
-          }
+          // Restart the manual flow correctly, even if the user
+          // originally uploaded history or answered the manual questions.
+          startManualFlow();
         } else {
           resetState();
         }
