@@ -20,7 +20,7 @@ const manualQuestions = [
     ]
   },
   {
-    question: "Which genres sound best to you? Pick one or describe a combination.",
+    question: "Which genres sound best to you?",
     options: [
       "Thriller, mystery, or crime",
       "Sci-fi or fantasy",
@@ -40,7 +40,7 @@ const manualQuestions = [
       "Emotional and character-driven",
       "Clever, twisty, and unpredictable",
       "Immersive and escapist",
-      "Something unusual or thought-provoking"
+      "Unusual or thought-provoking"
     ]
   },
   {
@@ -56,11 +56,11 @@ const manualQuestions = [
   {
     question: "What else should I prioritize or avoid?",
     options: [
-      "Something highly rated or widely loved",
-      "Something underrated or less obvious",
+      "Highly rated or widely loved",
+      "Underrated or less obvious",
       "A short movie or limited series",
       "Avoid graphic violence or disturbing content",
-      "I am open to anything"
+      "I'm open to anything"
     ]
   }
 ];
@@ -89,7 +89,7 @@ function resetState() {
 
   appendMessage(
     "assistant",
-    "Hi! I can help you find your next Netflix movie or series. Would you like to upload your Netflix viewing history so I can personalize the questions, or would you prefer to answer five quick questions instead?"
+    "Hi! I'm Netty, your AI-powered Netflix recommendation assistant! 🍿 I can help you find your next favorite movie or show based on your viewing history or personal preferences. My recommendations aren't always perfect, and I can't guarantee what's currently available in your Netflix catalog, but I'll do my best to find something you'll enjoy. Would you like to upload your Netflix viewing history, or tell me what you're in the mood for? Uploading is completely optional!"
   );
 
   renderStartChoices();
@@ -106,6 +106,7 @@ function appendMessage(role, text) {
 
   messagesEl.appendChild(message);
   messagesEl.scrollTop = messagesEl.scrollHeight;
+
   return message;
 }
 
@@ -120,8 +121,8 @@ function setBusy(value) {
   });
 
   if (value) {
-    uploadStatusEl.textContent = "Thinking...";
-  } else if (uploadStatusEl.textContent === "Thinking...") {
+    uploadStatusEl.textContent = "Netty is thinking...";
+  } else if (uploadStatusEl.textContent === "Netty is thinking...") {
     uploadStatusEl.textContent = "";
   }
 }
@@ -134,7 +135,11 @@ function renderChoices(options, onSelect) {
     button.type = "button";
     button.className = "choice-button";
     button.textContent = option;
-    button.addEventListener("click", () => onSelect(option));
+
+    button.addEventListener("click", () => {
+      if (!state.busy) onSelect(option);
+    });
+
     choicesEl.appendChild(button);
   }
 }
@@ -142,11 +147,37 @@ function renderChoices(options, onSelect) {
 function renderStartChoices() {
   renderChoices(
     [
-      "Yes, I'll upload my Netflix history",
+      "Yes, I'd like to upload my history",
       "No, continue without uploading"
     ],
     (choice) => {
       if (choice.startsWith("Yes")) {
+        showPrivacyConsent();
+      } else {
+        startManualFlow();
+      }
+    }
+  );
+}
+
+// Explain the data use BEFORE opening the file picker.
+function showPrivacyConsent() {
+  state.phase = "consent";
+  choicesEl.replaceChildren();
+
+  appendMessage(
+    "assistant",
+    "Before you choose a file, here's how your data will be used: I'll read the Netflix viewing-activity CSV in your browser and send a limited summary of titles and viewing counts to the AI service to generate personalized questions and recommendations. This app doesn't save your history to its own database. The summary is sent to Google's Gemini service to process your request. Please don't upload passwords, account credentials, payment information, or other private documents. I only need the viewing-activity CSV. You can cancel here and still get recommendations by answering five questions instead. Would you like to continue?"
+  );
+
+  renderChoices(
+    [
+      "I understand — choose my CSV",
+      "No thanks — continue without uploading"
+    ],
+    (choice) => {
+      if (choice.startsWith("I understand")) {
+        fileInput.value = "";
         fileInput.click();
       } else {
         startManualFlow();
@@ -160,13 +191,15 @@ function startManualFlow() {
   state.phase = "asking";
   state.answers = [];
   state.historySummary = null;
+  state.rejectedTitles = [];
 
   choicesEl.replaceChildren();
+  recommendationsEl.replaceChildren();
   uploadStatusEl.textContent = "";
 
   appendMessage(
     "assistant",
-    "No problem! You don't need to upload anything. I'll ask five questions to narrow down what you would enjoy. You can select an option or type a different answer."
+    "Absolutely! You don't need to share your viewing history. I'll ask five quick questions about what you want to watch. You can choose an option or type your own answer. 🍿"
   );
 
   askManualQuestion();
@@ -214,11 +247,10 @@ function parseCSV(text) {
       row.push(field);
       field = "";
     } else if ((char === "\n" || char === "\r") && !quoted) {
-      if (char === "\r" && text[i + 1] === "\n") {
-        i++;
-      }
+      if (char === "\r" && text[i + 1] === "\n") i++;
 
       row.push(field);
+
       if (row.some((cell) => cell.trim() !== "")) {
         rows.push(row);
       }
@@ -232,9 +264,7 @@ function parseCSV(text) {
 
   if (field.length > 0 || row.length > 0) {
     row.push(field);
-    if (row.some((cell) => cell.trim() !== "")) {
-      rows.push(row);
-    }
+    if (row.some((cell) => cell.trim() !== "")) rows.push(row);
   }
 
   if (rows.length < 2) {
@@ -265,14 +295,12 @@ function parseCSV(text) {
   })).filter((entry) => entry.title);
 
   if (!entries.length) {
-    throw new Error("No viewing titles were found in that CSV.");
+    throw new Error("I couldn't find any viewing titles in that CSV.");
   }
 
   const groups = new Map();
 
   for (const entry of entries) {
-    // Netflix history may list each episode separately. Group common
-    // episode formats so a series is not counted as dozens of titles.
     const baseTitle = entry.title
       .replace(/:\s*S\d+\s*:\s*E\d+.*$/i, "")
       .replace(/\s+-\s+Season\s+\d+.*$/i, "")
@@ -283,6 +311,7 @@ function parseCSV(text) {
 
     if (existing) {
       existing.count++;
+
       if (entry.date && (!existing.lastSeen || entry.date > existing.lastSeen)) {
         existing.lastSeen = entry.date;
       }
@@ -311,17 +340,55 @@ function parseCSV(text) {
 
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];
-  if (!file) return;
+
+  // The user may cancel the file picker.
+  if (!file) {
+    if (state.phase === "consent") {
+      appendMessage(
+        "assistant",
+        "No problem — no file was selected. You can try uploading again or continue without your history."
+      );
+
+      renderChoices(
+        ["Try uploading", "Continue without uploading"],
+        (choice) => {
+          if (choice === "Try uploading") {
+            showPrivacyConsent();
+          } else {
+            startManualFlow();
+          }
+        }
+      );
+    }
+    return;
+  }
 
   if (!file.name.toLowerCase().endsWith(".csv")) {
     uploadStatusEl.textContent =
-      "Please upload the Netflix viewing-activity CSV file.";
+      "Please choose the Netflix viewing-activity CSV file, not a password or account document.";
+
+    appendMessage(
+      "assistant",
+      "I couldn't use that file because it isn't a CSV. Your history is optional — you can select the correct file or continue without uploading."
+    );
+
+    renderChoices(
+      ["Try another CSV", "Continue without uploading"],
+      (choice) => {
+        if (choice === "Try another CSV") {
+          showPrivacyConsent();
+        } else {
+          startManualFlow();
+        }
+      }
+    );
+
     fileInput.value = "";
     return;
   }
 
   try {
-    uploadStatusEl.textContent = "Reading your viewing history...";
+    uploadStatusEl.textContent = "Reading your viewing history in this browser...";
 
     const text = await file.text();
     state.historySummary = parseCSV(text);
@@ -331,15 +398,16 @@ fileInput.addEventListener("change", async () => {
     state.rejectedTitles = [];
 
     choicesEl.replaceChildren();
+    recommendationsEl.replaceChildren();
 
     appendMessage(
       "user",
-      `I've uploaded my Netflix history (${state.historySummary.totalEntries} viewing entries).`
+      `I've chosen my Netflix viewing-history CSV (${state.historySummary.totalEntries} viewing entries).`
     );
 
     appendMessage(
       "assistant",
-      "Thanks! I'll use your viewing history to ask three more specific questions, then make recommendations."
+      "Thanks! I've read the file in your browser. I'll use a summary of its titles and viewing counts to tailor three follow-up questions. Remember, watching a title doesn't necessarily mean you liked it."
     );
 
     uploadStatusEl.textContent =
@@ -355,14 +423,14 @@ fileInput.addEventListener("change", async () => {
 
     appendMessage(
       "assistant",
-      "I couldn't use that file. You can try another CSV or continue without uploading your history."
+      "Sorry, I couldn't interpret that viewing-history file. You can try re-uploading the Netflix activity CSV, or skip the upload and answer five questions instead."
     );
 
     renderChoices(
       ["Try another CSV", "Continue without uploading"],
       (choice) => {
         if (choice === "Try another CSV") {
-          fileInput.click();
+          showPrivacyConsent();
         } else {
           startManualFlow();
         }
@@ -418,14 +486,16 @@ async function askHistoryQuestion() {
   } catch (error) {
     appendMessage(
       "assistant",
-      `I couldn't generate the next question: ${error.message} You can try again or restart.`
+      `Sorry, I couldn't generate the next question. ${error.message} You can retry or skip your history and answer five questions instead.`
     );
 
     renderChoices(
-      ["Try again", "Start over"],
+      ["Try again", "Continue without uploading", "Start over"],
       (choice) => {
         if (choice === "Try again") {
           askHistoryQuestion();
+        } else if (choice === "Continue without uploading") {
+          startManualFlow();
         } else {
           resetState();
         }
@@ -521,8 +591,8 @@ async function generateRecommendations(feedback = "") {
   appendMessage(
     "assistant",
     feedback
-      ? "Got it. I'll adjust the picks and try a different set."
-      : "Putting your preferences together and finding your next watch..."
+      ? "Thanks for the feedback! I'll use it to adjust the next set. 🍿"
+      : "I'm putting your preferences together and finding some possibilities. These are suggestions, not guarantees of what you'll enjoy or what's currently available."
   );
 
   try {
@@ -539,7 +609,7 @@ async function generateRecommendations(feedback = "") {
       : [];
 
     if (!items.length) {
-      throw new Error("The AI did not return any recommendations. Please try again.");
+      throw new Error("I didn't receive any recommendations. Please try again.");
     }
 
     state.recommendations = items;
@@ -552,7 +622,7 @@ async function generateRecommendations(feedback = "") {
 
     appendMessage(
       "assistant",
-      data.intro || "Here are some recommendations based on your answers."
+      data.intro || "Here are some ideas based on what you've told me."
     );
 
     renderRecommendations(data);
@@ -560,22 +630,39 @@ async function generateRecommendations(feedback = "") {
 
     appendMessage(
       "assistant",
-      "How do these look? You can tell me what you liked or disliked, or ask for a different set."
+      "How close are these to what you wanted? You know your tastes best! Tell me which suggestions missed the mark and why, or ask for a different set."
     );
 
     renderChoices(
-      ["Give me a different set", "I'm happy with these", "Start over"],
+      [
+        "Give me a different set",
+        "These aren't quite right",
+        "I'm happy with these",
+        "Start over"
+      ],
       (choice) => {
         if (choice === "Give me a different set") {
+          appendMessage("user", choice);
           generateRecommendations(
-            "Suggest a substantially different set of titles. Avoid all titles previously recommended."
+            "Give a substantially different set of titles. Avoid all titles previously recommended."
           );
-        } else if (choice === "I'm happy with these") {
-          choicesEl.replaceChildren();
+        } else if (choice === "These aren't quite right") {
+          appendMessage("user", choice);
           appendMessage(
             "assistant",
-            "Enjoy your next watch! If you want more ideas later, choose Start over."
+            "Sorry I missed the mark! Tell me which recommendation(s) were inaccurate and why, which genres you'd like more of, and which genres or content you'd prefer to avoid. I'll use your feedback to try again."
           );
+          answerInput.placeholder = "What should I change about the recommendations?";
+          answerInput.focus();
+        } else if (choice === "I'm happy with these") {
+          appendMessage("user", choice);
+          choicesEl.replaceChildren();
+
+          appendMessage(
+            "assistant",
+            "You're welcome! Enjoy your next watch. Remember, these are suggestions, and you can check Netflix for current availability. 🍿"
+          );
+
           state.phase = "finished";
           renderChoices(["Start over"], resetState);
         } else {
@@ -589,14 +676,21 @@ async function generateRecommendations(feedback = "") {
   } catch (error) {
     appendMessage(
       "assistant",
-      `I couldn't finish the recommendations: ${error.message}`
+      `Sorry, I couldn't finish the recommendations. ${error.message} You can retry, adjust your preferences, or start over.`
     );
 
     renderChoices(
-      ["Try recommendations again", "Start over"],
+      ["Try recommendations again", "Adjust my preferences", "Start over"],
       (choice) => {
         if (choice === "Try recommendations again") {
-          generateRecommendations();
+          generateRecommendations(feedback);
+        } else if (choice === "Adjust my preferences") {
+          if (state.flow === "history") {
+            startManualFlow();
+          } else {
+            state.phase = "asking";
+            askManualQuestion();
+          }
         } else {
           resetState();
         }
