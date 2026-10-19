@@ -1,5 +1,5 @@
 
-import { inject } from 'https://cdn.jsdelivr.net/npm/@vercel/analytics@2/+esm';
+import { inject } from '@vercel/analytics';
 
 // Initialize Vercel Web Analytics
 inject();
