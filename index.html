@@ -1,4 +1,4 @@
-
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,6 +8,7 @@
   <meta name="description" content="Personalized Netflix recommendations based on your tastes and optional viewing history.">
   <title>Netflix Recommender</title>
   <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
 </head>
 <body>
   <main class="app-shell">
@@ -57,9 +58,7 @@
       <div id="upload-status" class="upload-status" aria-live="polite"></div>
 
       <form id="answer-form" class="answer-form">
-        <label class="sr-only" for="answer-input">
-          Your answer
-        </label>
+        <label class="sr-only" for="answer-input">Your answer</label>
         <input
           id="answer-input"
           type="text"
@@ -91,3 +90,4 @@
   </main>
 </body>
 </html>
+```
