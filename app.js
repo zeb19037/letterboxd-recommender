@@ -1,9 +1,3 @@
-
-import { inject } from '@vercel/analytics';
-
-// Initialize Vercel Web Analytics
-inject();
-
 const messagesEl = document.getElementById("messages");
 const choicesEl = document.getElementById("choices");
 const recommendationsEl = document.getElementById("recommendations");
