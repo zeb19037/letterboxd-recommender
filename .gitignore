@@ -8,3 +8,6 @@ letterboxd-export/
 Thumbs.db
 .vscode/
 .idea/
+
+# Dependencies
+node_modules/

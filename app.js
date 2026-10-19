@@ -1,4 +1,8 @@
 
+import { inject } from 'https://cdn.jsdelivr.net/npm/@vercel/analytics@2/+esm';
+
+// Initialize Vercel Web Analytics
+inject();
 
 const messagesEl = document.getElementById("messages");
 const choicesEl = document.getElementById("choices");
