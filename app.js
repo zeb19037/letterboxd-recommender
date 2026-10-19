@@ -1,9 +1,4 @@
-import { inject } from 'https://cdn.jsdelivr.net/npm/@vercel/analytics@1/dist/index.mjs';
 
-inject({
-  mode: 'auto',
-  debug: false
-});
 
 const messagesEl = document.getElementById("messages");
 const choicesEl = document.getElementById("choices");
