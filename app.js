@@ -68,6 +68,7 @@ let state;
 
 function resetState() {
   state = {
+    sessionId: crypto.randomUUID(),
     flow: null,
     phase: "start",
     answers: [],
@@ -595,6 +596,7 @@ async function generateRecommendations(feedback = "") {
   try {
     const data = await callRecommendationAPI({
       action: "recommend",
+      sessionId: state.sessionId,
       historySummary: state.historySummary,
       answers: state.answers,
       feedback,
