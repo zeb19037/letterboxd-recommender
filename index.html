@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -20,6 +21,70 @@
 
   <!-- Load the chatbot -->
   <script type="module" src="/app.js"></script>
+
+  <!-- Feedback survey styling -->
+  <style>
+    .feedback-survey {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 48px 20px;
+      margin-top: 40px;
+      border-top: 1px solid #333;
+      color: #f5f5f5;
+    }
+
+    .feedback-survey-content {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    .feedback-survey h2 {
+      text-align: center;
+      margin: 0 0 12px;
+      font-size: 1.8rem;
+    }
+
+    .feedback-survey .survey-description {
+      text-align: center;
+      line-height: 1.7;
+      margin: 0 auto 24px;
+      max-width: 600px;
+    }
+
+    .feedback-survey iframe {
+      display: block;
+      width: 100%;
+      height: 900px;
+      border: 0;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .feedback-survey .survey-fallback {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 0.9rem;
+    }
+
+    .feedback-survey a {
+      color: #e50914;
+      text-decoration: underline;
+    }
+
+    @media (max-width: 600px) {
+      .feedback-survey {
+        padding: 32px 12px;
+      }
+
+      .feedback-survey h2 {
+        font-size: 1.5rem;
+      }
+
+      .feedback-survey iframe {
+        height: 1000px;
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -124,6 +189,43 @@
     <footer class="app-footer">
       Recommendations are AI-generated. Check Netflix for current availability.
     </footer>
+
+    <!-- Google Forms feedback survey -->
+    <section
+      id="feedback-survey"
+      class="feedback-survey"
+      aria-labelledby="feedback-survey-title"
+    >
+      <div class="feedback-survey-content">
+        <h2 id="feedback-survey-title">Help Make Netty Better!</h2>
+
+        <p class="survey-description">
+          Thanks for trying the Netflix Recommender! Please take a moment
+          to complete this feedback survey. Your responses will help us
+          evaluate and improve the recommendation experience.
+        </p>
+
+        <iframe
+          src="https://docs.google.com/forms/d/e/1FAIpQLScn1F0jD7ctGsbmOYunTuZDXj_MQKFoIWb1bbVDjNsJzS3BuA/viewform?embedded=true"
+          title="Netflix Recommender feedback survey"
+          loading="lazy"
+          allowfullscreen
+        >
+          Loading survey...
+        </iframe>
+
+        <p class="survey-fallback">
+          Can't see the survey?
+          <a
+            href="https://docs.google.com/forms/d/e/1FAIpQLScn1F0jD7ctGsbmOYunTuZDXj_MQKFoIWb1bbVDjNsJzS3BuA/viewform"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open the survey in Google Forms
+          </a>
+        </p>
+      </div>
+    </section>
   </main>
 </body>
 </html>
