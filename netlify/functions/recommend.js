@@ -1,22 +1,39 @@
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method not allowed." });
+export async function handler(event) {
+  const json = (statusCode, data) => ({
+    statusCode,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store"
+    },
+    body: JSON.stringify(data)
+  });
+
+  if (event.httpMethod !== "POST") {
+    return {
+      ...json(405, { error: "Method not allowed." }),
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store",
+        Allow: "POST"
+      }
+    };
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    return res.status(500).json({
-      error: "GEMINI_API_KEY is missing from Vercel environment variables."
+    console.error("GEMINI_API_KEY is missing from Netlify environment variables.");
+
+    return json(500, {
+      error: "The recommendation service is not configured. Please try again later."
     });
   }
 
   try {
-    const body = req.body || {};
+    const body = event.body ? JSON.parse(event.body) : {};
     let prompt;
 
     if (body.action === "historyQuestion") {
@@ -24,7 +41,7 @@ export default async function handler(req, res) {
     } else if (body.action === "recommend") {
       prompt = buildRecommendationPrompt(body);
     } else {
-      return res.status(400).json({ error: "Unknown action." });
+      return json(400, { error: "Unknown action." });
     }
 
     const result = await fetch(
@@ -56,31 +73,36 @@ export default async function handler(req, res) {
 
       console.error("Gemini API error:", result.status, apiMessage);
 
-      return res.status(502).json({
+      return json(502, {
         error: `The recommendation service returned an error: ${apiMessage}`
       });
     }
 
-    const generatedText =
-      responseData.candidates?.[0]?.content?.parts
-        ?.map((part) => part.text || "")
-        .join("")
-        .trim();
+    const generatedText = responseData.candidates?.[0]?.content?.parts
+      ?.map((part) => part.text || "")
+      .join("")
+      .trim();
 
     if (!generatedText) {
-      return res.status(502).json({
+      console.error("Gemini returned no text:", JSON.stringify(responseData));
+
+      return json(502, {
         error: "Gemini returned an empty response. Please try again."
       });
     }
 
-    const parsed = parseGeneratedJSON(generatedText);
-
-    return res.status(200).json(parsed);
+    return json(200, parseGeneratedJSON(generatedText));
   } catch (error) {
     console.error("Recommendation endpoint error:", error);
 
-    return res.status(500).json({
-      error: error.message || "An unexpected server error occurred."
+    if (error instanceof SyntaxError) {
+      return json(400, {
+        error: "Invalid JSON request body or invalid JSON returned by Gemini."
+      });
+    }
+
+    return json(500, {
+      error: "An unexpected server error occurred. Please try again."
     });
   }
 }
@@ -220,9 +242,9 @@ function sanitizeHistory(history) {
 
   const topTitles = Array.isArray(history.topTitles)
     ? history.topTitles.slice(0, 80).map((item) => ({
-        title: cleanText(item.title, 150),
-        count: Math.max(1, Number(item.count) || 1),
-        lastSeen: cleanText(item.lastSeen, 60)
+        title: cleanText(item?.title, 150),
+        count: Math.max(1, Number(item?.count) || 1),
+        lastSeen: cleanText(item?.lastSeen, 60)
       }))
     : [];
 
