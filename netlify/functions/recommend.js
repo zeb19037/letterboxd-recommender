@@ -1,25 +1,21 @@
+import { saveRecommendation } from "../../db/save-recommendation.ts";
+
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 
-export async function handler(event) {
-  const json = (statusCode, data) => ({
-    statusCode,
+const json = (status, data, extraHeaders = {}) =>
+  new Response(JSON.stringify(data), {
+    status,
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control": "no-store"
-    },
-    body: JSON.stringify(data)
+      "Cache-Control": "no-store",
+      ...extraHeaders
+    }
   });
 
-  if (event.httpMethod !== "POST") {
-    return {
-      ...json(405, { error: "Method not allowed." }),
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store",
-        Allow: "POST"
-      }
-    };
+export default async (req) => {
+  if (req.method !== "POST") {
+    return json(405, { error: "Method not allowed." }, { Allow: "POST" });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -33,7 +29,8 @@ export async function handler(event) {
   }
 
   try {
-    const body = event.body ? JSON.parse(event.body) : {};
+    const rawBody = await req.text();
+    const body = rawBody ? JSON.parse(rawBody) : {};
     let prompt;
 
     if (body.action === "historyQuestion") {
@@ -44,11 +41,19 @@ export async function handler(event) {
       return json(400, { error: "Unknown action." });
     }
 
+    const baseUrl = (
+      process.env.GOOGLE_GEMINI_BASE_URL ||
+      "https://generativelanguage.googleapis.com"
+    ).replace(/\/$/, "");
+
     const result = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
+      `${baseUrl}/v1beta/models/${MODEL}:generateContent`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey
+        },
         body: JSON.stringify({
           contents: [
             {
@@ -91,7 +96,23 @@ export async function handler(event) {
       });
     }
 
-    return json(200, parseGeneratedJSON(generatedText));
+    const data = parseGeneratedJSON(generatedText);
+
+    if (body.action === "recommend") {
+      try {
+        await saveRecommendation({
+          sessionId: body.sessionId,
+          usedViewingHistory: Boolean(body.historySummary),
+          answers: sanitizeAnswers(body.answers),
+          feedback: cleanText(body.feedback, 1000),
+          result: data
+        });
+      } catch (error) {
+        console.error("Failed to save recommendation:", error);
+      }
+    }
+
+    return json(200, data);
   } catch (error) {
     console.error("Recommendation endpoint error:", error);
 
@@ -105,7 +126,7 @@ export async function handler(event) {
       error: "An unexpected server error occurred. Please try again."
     });
   }
-}
+};
 
 function buildHistoryQuestionPrompt(body) {
   const history = sanitizeHistory(body.historySummary);
