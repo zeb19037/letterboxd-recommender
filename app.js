@@ -48,21 +48,23 @@ function resetState() {
   statusEl.textContent = "";
   answerInput.value = "";
   answerInput.disabled = false;
+  sendButton.disabled = false;
+  resetButton.disabled = false;
+
   answerInput.placeholder =
     "Talk about a film, explore cinema, or find something to watch...";
-  sendButton.disabled = false;
 
-  appendMessage(
-    "assistant",
+  const welcome =
     "Hey! I'm Netty, your AI film conversation companion. 🍿 " +
     "We can talk about films you love, explore directors and genres, " +
     "or find something new to watch. You don't need to upload any " +
-    "viewing history. What's on your mind?"
-  );
+    "viewing history. What's on your mind?";
+
+  appendMessage("assistant", welcome);
 
   state.messages.push({
     role: "assistant",
-    text: messagesEl.lastElementChild.textContent
+    text: welcome
   });
 
   renderChoices([
@@ -99,7 +101,11 @@ function renderChoices(options) {
     button.textContent = option;
 
     button.addEventListener("click", () => {
-      sendMessage(option);
+      if (option === "Try again") {
+        retryLastMessage();
+      } else {
+        sendMessage(option);
+      }
     });
 
     choicesEl.appendChild(button);
@@ -117,10 +123,6 @@ function setBusy(busy) {
   });
 
   statusEl.textContent = busy ? "Netty is thinking..." : "";
-
-  if (busy) {
-    statusEl.setAttribute("role", "status");
-  }
 }
 
 async function sendMessage(rawText) {
@@ -140,7 +142,6 @@ async function sendMessage(rawText) {
     text
   });
 
-  // Keep enough recent context for follow-up questions.
   state.messages = state.messages.slice(-MAX_HISTORY_MESSAGES);
 
   setBusy(true);
@@ -162,7 +163,7 @@ async function sendMessage(rawText) {
 
     if (!response.ok) {
       throw new Error(
-        data.error || `The server returned an error (${response.status}).`
+        data.error || `Server error (${response.status}).`
       );
     }
 
@@ -170,15 +171,16 @@ async function sendMessage(rawText) {
       throw new Error("Netty returned an empty response.");
     }
 
-    appendMessage("assistant", data.reply.trim());
+    const reply = data.reply.trim();
+
+    appendMessage("assistant", reply);
 
     state.messages.push({
       role: "assistant",
-      text: data.reply.trim()
+      text: reply
     });
 
     state.messages = state.messages.slice(-MAX_HISTORY_MESSAGES);
-
     updateTasteProfile(data.profileUpdates);
 
     renderChoices([
@@ -191,38 +193,37 @@ async function sendMessage(rawText) {
 
     appendMessage(
       "assistant",
-      "Sorry, I couldn't get a response just now. Your earlier " +
-      "messages are still here. Please try sending your message again."
+      "Sorry, I couldn't get a response just now. Your message is still " +
+      "here. Please try again, or check that the Netlify function and " +
+      "Gemini API key are configured."
     );
 
     renderChoices(["Try again"]);
-
-    // Retry the last message without duplicating it in the conversation.
-    const retryButton = choicesEl.querySelector("button");
-
-    if (retryButton) {
-      retryButton.addEventListener("click", () => {
-        const lastUserMessage = [...state.messages]
-          .reverse()
-          .find((message) => message.role === "user");
-
-        if (lastUserMessage) {
-          // Remove the failed turn from history before retrying.
-          state.messages = state.messages.filter(
-            (message) => message !== lastUserMessage
-          );
-
-          // Remove the error message from the visible chat.
-          messagesEl.lastElementChild?.remove();
-
-          sendMessage(lastUserMessage.text);
-        }
-      }, { once: true });
-    }
   } finally {
     setBusy(false);
     answerInput.focus();
   }
+}
+
+async function retryLastMessage() {
+  if (state.busy) return;
+
+  const lastUserMessage = [...state.messages]
+    .reverse()
+    .find((message) => message.role === "user");
+
+  if (!lastUserMessage) return;
+
+  // Remove the visible error and failed user-message bubbles.
+  messagesEl.lastElementChild?.remove();
+  messagesEl.lastElementChild?.remove();
+
+  // Remove the failed message from history before resending it.
+  state.messages = state.messages.filter(
+    (message) => message !== lastUserMessage
+  );
+
+  await sendMessage(lastUserMessage.text);
 }
 
 function updateTasteProfile(updates) {
@@ -232,6 +233,7 @@ function updateTasteProfile(updates) {
     if (!Array.isArray(updates[key])) continue;
 
     const existing = state.tasteProfile[key] || [];
+
     const incoming = updates[key]
       .filter((value) => typeof value === "string")
       .map((value) => value.trim())
@@ -253,7 +255,6 @@ answerForm.addEventListener("submit", (event) => {
   sendMessage(answerInput.value);
 });
 
-// Enter sends the message. Shift+Enter inserts a new line.
 answerInput.addEventListener("keydown", (event) => {
   if (
     event.key === "Enter" &&
@@ -267,5 +268,4 @@ answerInput.addEventListener("keydown", (event) => {
 
 resetButton.addEventListener("click", resetState);
 
-// Start with a clean, conversational session.
 resetState();
