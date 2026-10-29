@@ -5,124 +5,65 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#141414">
-  <meta name="description" content="Personalized Netflix recommendations based on your tastes and optional viewing history.">
 
-  <title>Netflix Recommender</title>
+  <meta
+    name="description"
+    content="Talk about films, explore cinema, and discover movies with Netty, your AI film conversation companion."
+  >
+
+  <title>Netty — Film Conversations</title>
 
   <link rel="stylesheet" href="/styles.css">
-
-  <!-- Vercel Web Analytics -->
-  <script>
-    window.va = window.va || function () {
-      (window.vaq = window.vaq || []).push(arguments);
-    };
-  </script>
-  <script defer src="/_vercel/insights/script.js"></script>
-
-  <!-- Load the chatbot -->
-  <script type="module" src="/app.js"></script>
-
-  <!-- Feedback survey styling -->
-  <style>
-    .feedback-survey {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 48px 20px;
-      margin-top: 40px;
-      border-top: 1px solid #333;
-      color: #f5f5f5;
-    }
-
-    .feedback-survey-content {
-      max-width: 760px;
-      margin: 0 auto;
-    }
-
-    .feedback-survey h2 {
-      text-align: center;
-      margin: 0 0 12px;
-      font-size: 1.8rem;
-    }
-
-    .feedback-survey .survey-description {
-      text-align: center;
-      line-height: 1.7;
-      margin: 0 auto 24px;
-      max-width: 600px;
-    }
-
-    .feedback-survey iframe {
-      display: block;
-      width: 100%;
-      height: 900px;
-      border: 0;
-      border-radius: 8px;
-      background: #fff;
-    }
-
-    .feedback-survey .survey-fallback {
-      text-align: center;
-      margin-top: 16px;
-      font-size: 0.9rem;
-    }
-
-    .feedback-survey a {
-      color: #e50914;
-      text-decoration: underline;
-    }
-
-    @media (max-width: 600px) {
-      .feedback-survey {
-        padding: 32px 12px;
-      }
-
-      .feedback-survey h2 {
-        font-size: 1.5rem;
-      }
-
-      .feedback-survey iframe {
-        height: 1000px;
-      }
-    }
-  </style>
+  <script defer src="/app.js"></script>
 </head>
 
 <body>
   <main class="app-shell">
     <header class="app-header">
-      <div class="brand">
-        <span class="brand-mark">N</span>
-        <div>
-          <h1>Netflix Recommender</h1>
-          <p>Your next favorite is waiting.</p>
-        </div>
-      </div>
+      <a class="brand" href="/" aria-label="Netty home">
+        <span class="brand-mark" aria-hidden="true">N</span>
+        <span class="brand-copy">
+          <span class="brand-title">Netty</span>
+          <span class="brand-subtitle">Your film conversation companion</span>
+        </span>
+      </a>
 
-      <button id="reset-button" class="text-button" type="button">
+      <button
+        id="reset-button"
+        class="text-button"
+        type="button"
+      >
         Start over
       </button>
     </header>
 
     <section class="intro-panel">
-      <span class="eyebrow">YOUR PERSONAL WATCH GUIDE</span>
-      <h2>Less scrolling.<br><span>Better watching.</span></h2>
-      <p>
-        Tell the chatbot what you're in the mood for.
-        Uploading your Netflix viewing history is optional.
+      <p class="eyebrow">A LITTLE MORE CINEMA</p>
+
+      <h1>
+        Let's talk<br>
+        <span>about film.</span>
+      </h1>
+
+      <p class="intro-copy">
+        From your favorite directors to a movie you can't stop thinking
+        about, this is a place to explore cinema and discover what to
+        watch next.
       </p>
     </section>
 
-    <section class="chat-panel" aria-label="Recommendation chat">
-      <div class="chat-heading">
-        <div class="assistant-avatar">N</div>
-        <div>
-          <h2>Recommendation assistant</h2>
+    <section class="chat-panel" aria-label="Chat with Netty">
+      <header class="chat-heading">
+        <div class="assistant-avatar" aria-hidden="true">N</div>
+
+        <div class="chat-heading-copy">
+          <h2>Netty</h2>
           <p>
-            <span class="status-dot"></span>
-            Ready to find something good
+            <span class="status-dot" aria-hidden="true"></span>
+            Your AI film companion
           </p>
         </div>
-      </div>
+      </header>
 
       <div
         id="messages"
@@ -130,102 +71,61 @@
         role="log"
         aria-live="polite"
         aria-relevant="additions"
+        aria-label="Conversation"
       ></div>
 
       <div
         id="choices"
         class="choices"
-        aria-label="Suggested answers"
-      ></div>
-
-      <div
-        id="recommendations"
-        class="recommendations"
+        aria-label="Suggested messages"
       ></div>
 
       <div
         id="upload-status"
         class="upload-status"
+        role="status"
         aria-live="polite"
       ></div>
 
       <form id="answer-form" class="answer-form">
         <label class="sr-only" for="answer-input">
-          Your answer
+          Your message to Netty
         </label>
 
-        <input
+        <textarea
           id="answer-input"
-          type="text"
-          placeholder="Choose an option or type your own answer..."
+          placeholder="Talk about a film, explore cinema, or find something to watch..."
+          maxlength="2000"
+          rows="2"
           autocomplete="off"
-          maxlength="1000"
-        >
+          aria-label="Your message to Netty"
+        ></textarea>
 
         <button
           id="send-button"
           type="submit"
-          aria-label="Send answer"
         >
           Send
         </button>
       </form>
 
-      <p class="privacy-note">
-        Your original CSV is processed in your browser. A summary of your
-        viewing history may be sent to the AI service to personalize results.
-        When recommendations are made, your answers and the suggested titles
-        are saved anonymously to help improve the service.
+      <p class="input-hint">
+        Press Enter to send · Shift+Enter for a new line
       </p>
 
-      <input
-        id="history-file"
-        type="file"
-        accept=".csv,text/csv"
-        hidden
-      >
+      <p class="privacy-note">
+        Netty is an AI-powered film conversation companion. Your messages
+        and taste profile are sent to Google's Gemini service to generate
+        responses. The current conversation is kept in browser memory and
+        is cleared when you reload or start over. Avoid sharing sensitive
+        personal information. AI-generated film information may be
+        inaccurate.
+      </p>
     </section>
 
     <footer class="app-footer">
-      Recommendations are AI-generated. Check Netflix for current availability.
+      Made for people who love talking about movies.
     </footer>
-
-    <!-- Google Forms feedback survey -->
-    <section
-      id="feedback-survey"
-      class="feedback-survey"
-      aria-labelledby="feedback-survey-title"
-    >
-      <div class="feedback-survey-content">
-        <h2 id="feedback-survey-title">Help Make Netty Better!</h2>
-
-        <p class="survey-description">
-          Thanks for trying the Netflix Recommender! Please take a moment
-          to complete this feedback survey. Your responses will help us
-          evaluate and improve the recommendation experience.
-        </p>
-
-        <iframe
-          src="https://docs.google.com/forms/d/e/1FAIpQLScn1F0jD7ctGsbmOYunTuZDXj_MQKFoIWb1bbVDjNsJzS3BuA/viewform?embedded=true"
-          title="Netflix Recommender feedback survey"
-          loading="lazy"
-          allowfullscreen
-        >
-          Loading survey...
-        </iframe>
-
-        <p class="survey-fallback">
-          Can't see the survey?
-          <a
-            href="https://docs.google.com/forms/d/e/1FAIpQLScn1F0jD7ctGsbmOYunTuZDXj_MQKFoIWb1bbVDjNsJzS3BuA/viewform"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Open the survey in Google Forms
-          </a>
-        </p>
-      </div>
-    </section>
   </main>
 </body>
 </html>
