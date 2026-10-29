@@ -5,65 +5,193 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#141414">
-
   <meta
     name="description"
-    content="Talk about films, explore cinema, and discover movies with Netty, your AI film conversation companion."
+    content="Meet Netty, your personal film conversation companion. Discover films, explore your taste, and find your next favourite."
   >
 
-  <title>Netty — Film Conversations</title>
+  <title>Netty — Your Film Companion</title>
 
   <link rel="stylesheet" href="/styles.css">
-  <script defer src="/app.js"></script>
+
+  <script type="module" src="/app.js"></script>
+
+  <style>
+    /* Feedback section */
+    .feedback-card {
+      position: relative;
+      box-sizing: border-box;
+      max-width: 720px;
+      margin: 36px auto 24px;
+      padding: 38px 28px 32px;
+      overflow: hidden;
+      text-align: center;
+      color: #f5f5f5;
+      background:
+        radial-gradient(
+          ellipse at top,
+          rgba(229, 9, 20, 0.18),
+          transparent 70%
+        ),
+        #191919;
+      border: 1px solid rgba(255, 101, 108, 0.24);
+      border-radius: 20px;
+      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.2);
+    }
+
+    .feedback-icon {
+      display: grid;
+      place-items: center;
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 18px;
+      color: #ff858a;
+      background: rgba(229, 9, 20, 0.12);
+      border: 1px solid rgba(255, 101, 108, 0.3);
+      border-radius: 15px;
+      font-size: 25px;
+    }
+
+    .feedback-eyebrow {
+      margin: 0 0 10px;
+      color: #ff858a;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 2.5px;
+    }
+
+    .feedback-card h2 {
+      margin: 0 0 14px;
+      color: #fff;
+      font-size: clamp(25px, 4vw, 34px);
+      line-height: 1.2;
+      letter-spacing: -0.7px;
+    }
+
+    .feedback-description {
+      max-width: 490px;
+      margin: 0 auto 26px;
+      color: #c5c5c5;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .feedback-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      box-sizing: border-box;
+      min-height: 48px;
+      padding: 14px 24px;
+      color: #fff;
+      background: #e50914;
+      border: 1px solid #ff656c;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 750;
+      text-decoration: none;
+      box-shadow: 0 6px 22px rgba(229, 9, 20, 0.2);
+      transition:
+        transform 160ms ease,
+        background 160ms ease,
+        box-shadow 160ms ease;
+    }
+
+    .feedback-button:hover {
+      transform: translateY(-2px);
+      background: #f6121d;
+      box-shadow: 0 10px 28px rgba(229, 9, 20, 0.3);
+    }
+
+    .feedback-button:focus-visible {
+      outline: 2px solid #ff9da1;
+      outline-offset: 4px;
+    }
+
+    .feedback-button span {
+      font-size: 17px;
+    }
+
+    .feedback-footnote {
+      margin: 17px 0 0;
+      color: #888;
+      font-size: 11px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 600px) {
+      .feedback-card {
+        margin: 26px 12px 18px;
+        padding: 30px 19px 25px;
+      }
+
+      .feedback-description {
+        font-size: 13px;
+      }
+
+      .feedback-button {
+        width: 100%;
+        max-width: 290px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .feedback-button {
+        transition: none;
+      }
+
+      .feedback-button:hover {
+        transform: none;
+      }
+    }
+  </style>
 </head>
 
 <body>
   <main class="app-shell">
-    <header class="app-header">
-      <a class="brand" href="/" aria-label="Netty home">
-        <span class="brand-mark" aria-hidden="true">N</span>
-        <span class="brand-copy">
-          <span class="brand-title">Netty</span>
-          <span class="brand-subtitle">Your film conversation companion</span>
-        </span>
-      </a>
 
-      <button
-        id="reset-button"
-        class="text-button"
-        type="button"
-      >
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark">N</span>
+        <div>
+          <h1>Netty</h1>
+          <p>Your personal film companion.</p>
+        </div>
+      </div>
+
+      <button id="reset-button" class="text-button" type="button">
         Start over
       </button>
     </header>
 
     <section class="intro-panel">
-      <p class="eyebrow">A LITTLE MORE CINEMA</p>
+      <span class="eyebrow">YOUR PERSONAL FILM COMPANION</span>
 
-      <h1>
-        Let's talk<br>
-        <span>about film.</span>
-      </h1>
+      <h2>
+        Less scrolling.<br>
+        <span>Better watching.</span>
+      </h2>
 
-      <p class="intro-copy">
-        From your favorite directors to a movie you can't stop thinking
-        about, this is a place to explore cinema and discover what to
-        watch next.
+      <p>
+        Tell Netty what you love, what you're in the mood for,
+        or what kind of film you want to discover.
       </p>
     </section>
 
-    <section class="chat-panel" aria-label="Chat with Netty">
-      <header class="chat-heading">
-        <div class="assistant-avatar" aria-hidden="true">N</div>
+    <section class="chat-panel" aria-label="Film conversation">
 
-        <div class="chat-heading-copy">
-          <h2>Netty</h2>
+      <div class="chat-heading">
+        <div class="assistant-avatar">N</div>
+
+        <div>
+          <h2>Chat with Netty</h2>
           <p>
-            <span class="status-dot" aria-hidden="true"></span>
-            Your AI film companion
+            <span class="status-dot"></span>
+            Ready to talk films
           </p>
         </div>
-      </header>
+      </div>
 
       <div
         id="messages"
@@ -71,61 +199,103 @@
         role="log"
         aria-live="polite"
         aria-relevant="additions"
-        aria-label="Conversation"
       ></div>
 
       <div
         id="choices"
         class="choices"
-        aria-label="Suggested messages"
+        aria-label="Suggested answers"
+      ></div>
+
+      <div
+        id="recommendations"
+        class="recommendations"
       ></div>
 
       <div
         id="upload-status"
         class="upload-status"
-        role="status"
         aria-live="polite"
       ></div>
 
       <form id="answer-form" class="answer-form">
         <label class="sr-only" for="answer-input">
-          Your message to Netty
+          Your message
         </label>
 
-        <textarea
+        <input
           id="answer-input"
-          placeholder="Talk about a film, explore cinema, or find something to watch..."
-          maxlength="2000"
-          rows="2"
+          type="text"
+          placeholder="Tell Netty what you're looking for..."
           autocomplete="off"
-          aria-label="Your message to Netty"
-        ></textarea>
+          maxlength="1000"
+        >
 
         <button
           id="send-button"
           type="submit"
+          aria-label="Send message"
         >
           Send
         </button>
       </form>
 
-      <p class="input-hint">
-        Press Enter to send · Shift+Enter for a new line
+      <p class="privacy-note">
+        Netty uses AI to help you explore films and discover
+        recommendations. Avoid sharing sensitive personal information.
       </p>
 
-      <p class="privacy-note">
-        Netty is an AI-powered film conversation companion. Your messages
-        and taste profile are sent to Google's Gemini service to generate
-        responses. The current conversation is kept in browser memory and
-        is cleared when you reload or start over. Avoid sharing sensitive
-        personal information. AI-generated film information may be
-        inaccurate.
-      </p>
+      <input
+        id="history-file"
+        type="file"
+        accept=".csv,text/csv"
+        hidden
+      >
+
     </section>
 
     <footer class="app-footer">
-      Made for people who love talking about movies.
+      <p>
+        Film recommendations are AI-generated. Check your streaming
+        services for current availability.
+      </p>
     </footer>
+
+    <!-- Netty feedback card -->
+    <section
+      id="feedback-survey"
+      class="feedback-card"
+      aria-labelledby="feedback-title"
+    >
+      <div class="feedback-icon" aria-hidden="true">✦</div>
+
+      <p class="feedback-eyebrow">HELP NETTY GROW</p>
+
+      <h2 id="feedback-title">
+        Make Netty even better.
+      </h2>
+
+      <p class="feedback-description">
+        Have a thought, suggestion, or idea? Your feedback helps
+        us improve Netty and make discovering your next favourite
+        film a better experience.
+      </p>
+
+      <a
+        class="feedback-button"
+        href="https://docs.google.com/forms/d/e/1FAIpQLScn1F0jD7ctGsbmOYunTuZDXj_MQKFoIWb1bbVDjNsJzS3BuA/viewform"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Share your feedback
+        <span aria-hidden="true">↗</span>
+      </a>
+
+      <p class="feedback-footnote">
+        Opens Google Forms in a new tab. Thanks for helping Netty grow.
+      </p>
+    </section>
+
   </main>
 </body>
 </html>
