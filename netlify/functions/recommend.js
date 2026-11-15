@@ -295,9 +295,18 @@ CONVERSATION
 - If the user changes topic, follow the new topic when appropriate.
 
 ACCURACY
-- Do not knowingly invent film titles, directors, release years, or facts.
-- You do not have guaranteed live access to a film database.
-- Be honest when a detail is uncertain.
+- You have access to Google Search through Gemini's search grounding tool.
+- Use Google Search whenever you are uncertain about a movie, its existence,
+  title, director, cast, release date, plot, or other factual information.
+- Search for unfamiliar movies rather than assuming they do not exist.
+- Search when a user mentions a newly announced, upcoming, or recently
+  released movie.
+- Verify movie details using reliable sources whenever possible.
+- Never substitute a different movie because its plot or title seems similar.
+- If search results are inconclusive or multiple movies match, ask the user
+  for clarification instead of guessing.
+- Do not invent movie information or claim a fact has been verified if it
+  has not been.
 - Do not claim current streaming availability unless verified.
 
 PRIVACY AND MEMORY
@@ -575,8 +584,13 @@ export default async function handler(req) {
         body: JSON.stringify({
           contents: [
             {
-              role: "user",
-              parts: [{ text: buildPrompt(conversation, tasteProfile) }]
+            role: "user",
+            parts: [{ text: buildPrompt(conversation, tasteProfile) }]
+            }
+          ],
+          tools: [
+            {
+              google_search: {}
             }
           ],
           generationConfig: {
@@ -615,6 +629,33 @@ export default async function handler(req) {
     }
 
     const generated = parseGeneratedJSON(generatedText);
+
+    // Extract Google Search sources, if Gemini used search.
+    const groundingChunks =
+      result.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+
+    const sources = [
+      ...new Map(
+        groundingChunks
+          .filter((chunk) => chunk.web?.uri)
+          .map((chunk) => [
+            chunk.web.uri,
+            {
+              title: chunk.web.title || "Source",
+              uri: chunk.web.uri
+            }
+          ])
+      ).values()
+    ].slice(0, 4);
+
+    // Include source links in Netty's response.
+    if (sources.length > 0) {
+      generated.reply +=
+        "\n\nSources:\n" +
+        sources
+          .map((source) => `${source.title}: ${source.uri}`)
+          .join("\n");
+    }
     const updatedProfile = mergeProfiles(
       tasteProfile,
       generated.profileUpdates
