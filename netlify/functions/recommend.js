@@ -634,28 +634,6 @@ export default async function handler(req) {
     const groundingChunks =
       result.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
-    const sources = [
-      ...new Map(
-        groundingChunks
-          .filter((chunk) => chunk.web?.uri)
-          .map((chunk) => [
-            chunk.web.uri,
-            {
-              title: chunk.web.title || "Source",
-              uri: chunk.web.uri
-            }
-          ])
-      ).values()
-    ].slice(0, 4);
-
-    // Include source links in Netty's response.
-    if (sources.length > 0) {
-      generated.reply +=
-        "\n\nSources:\n" +
-        sources
-          .map((source) => `${source.title}: ${source.uri}`)
-          .join("\n");
-    }
     const updatedProfile = mergeProfiles(
       tasteProfile,
       generated.profileUpdates
